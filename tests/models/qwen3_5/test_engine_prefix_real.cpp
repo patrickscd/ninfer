@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#ifndef _WIN32
 namespace {
 
 std::atomic<bool> fail_next_event_query{false};
@@ -36,11 +37,27 @@ extern "C" cudaError_t CUDARTAPI cudaEventQuery(cudaEvent_t event) {
     }
     return real(event);
 }
+#endif
 
 namespace {
 
-ninfer::EngineOptions engine_options(const char* artifact) {
+ninfer::EngineOptions prefix_engine_defaults() {
     ninfer::EngineOptions options;
+    if (const char* reserve = std::getenv("NINFER_TEST_DESKTOP_RESERVE_MIB")) {
+        const std::string_view text(reserve);
+        std::uint64_t mib = 0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), mib);
+        constexpr std::size_t MiB = 1024 * 1024;
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !mib ||
+            mib > std::numeric_limits<std::size_t>::max() / MiB)
+            throw std::invalid_argument("NINFER_TEST_DESKTOP_RESERVE_MIB requires positive MiB");
+        options.desktop_reserve_bytes = static_cast<std::size_t>(mib) * MiB;
+    }
+    return options;
+}
+
+ninfer::EngineOptions engine_options(const char* artifact) {
+    auto options = prefix_engine_defaults();
     options.artifact_path             = artifact;
     options.max_context               = 4096;
     options.prefill_chunk             = 1024;
@@ -57,7 +74,7 @@ ninfer::EngineOptions engine_options(const char* artifact) {
 ninfer::EngineOptions host_restore_engine_options(const char* artifact,
                                                   std::uint32_t max_context   = 512,
                                                   std::uint32_t prefill_chunk = 256) {
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path             = artifact;
     options.max_context               = max_context;
     options.prefill_chunk             = prefill_chunk;
@@ -75,7 +92,7 @@ ninfer::EngineOptions host_restore_engine_options(const char* artifact,
 }
 
 ninfer::EngineOptions anthropic_prefix_regression_engine_options(const char* artifact) {
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path             = artifact;
     options.max_context               = 2048;
     options.prefill_chunk             = 512;
@@ -95,7 +112,7 @@ ninfer::EngineOptions anthropic_prefix_regression_engine_options(const char* art
 }
 
 ninfer::EngineOptions shared_rewrite_materialization_engine_options(const char* artifact) {
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path                     = artifact;
     options.max_context                       = 100000;
     options.prefill_chunk                     = 1024;
@@ -111,7 +128,7 @@ ninfer::EngineOptions shared_rewrite_materialization_engine_options(const char* 
 }
 
 ninfer::EngineOptions explicit_anchor_engine_options(const char* artifact) {
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path                     = artifact;
     options.max_context                       = 512;
     options.prefill_chunk                     = 256;
@@ -124,7 +141,7 @@ ninfer::EngineOptions explicit_anchor_engine_options(const char* artifact) {
 }
 
 ninfer::EngineOptions concurrent_engine_options(const char* artifact) {
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path                     = artifact;
     options.max_context                       = 512;
     options.prefill_chunk                     = 256;
@@ -450,6 +467,10 @@ int exercise_terminal_publication(ninfer::Engine& engine) {
         throw std::runtime_error("native request rejection did not settle independently");
     }
 
+    std::cout << "terminal publication: completion, cancellation and queue/native errors\n";
+#ifdef _WIN32
+    std::cout << "skip: injected CUDA event-query instance failure requires ELF symbol interposition\n";
+#else
     // Both an admitted and a queued request must observe the same instance failure only after
     // all logical membership has been released. The injected error leaves CUDA usable for cleanup.
     request.execution.requested_output_tokens = 4090;
@@ -477,8 +498,8 @@ int exercise_terminal_publication(ninfer::Engine& engine) {
     if (!event_failure_injected.load()) {
         throw std::runtime_error("terminal failure fixture did not reach execution");
     }
-    std::cout << "terminal publication: completion, cancellation, queue/native errors and instance "
-                 "failure\n";
+    std::cout << "terminal publication: injected instance failure\n";
+#endif
     return 0;
 }
 
@@ -2032,7 +2053,7 @@ int exercise_concurrent_resource_settlement(const char* artifact) {
 // of the burst may still hold unsettled StateImage Forks: every plan must seal or wait, and a
 // deferred document must be admitted beside the running code requests rather than after them.
 int exercise_concurrent_long_reuse(const char* artifact, bool mtp) {
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path        = artifact;
     options.max_context          = 32768;
     options.prefill_chunk        = 8192;
@@ -2230,7 +2251,7 @@ int exercise_attention_integration(const char* artifact) {
         static_cast<std::uint32_t>(std::stoul(std::string(setting("NINFER_TEST_BATCH", "2"))));
     const auto drafts = static_cast<std::uint32_t>(std::stoul(std::string(setting(
         "NINFER_TEST_DRAFT_TOKENS", backend == ninfer::SpeculativeBackend::Mtp ? "3" : "7"))));
-    ninfer::EngineOptions options;
+    auto options = prefix_engine_defaults();
     options.artifact_path             = artifact;
     options.kv_cache                  = storage;
     options.max_context               = 65536;
@@ -2240,16 +2261,6 @@ int exercise_attention_integration(const char* artifact) {
     options.speculative.backend       = backend;
     options.speculative.draft_tokens  = backend == ninfer::SpeculativeBackend::None ? 0 : drafts;
     options.speculative.proposal_head = ninfer::ProposalHead::Full;
-    if (const char* reserve = std::getenv("NINFER_TEST_DESKTOP_RESERVE_MIB")) {
-        const std::string_view text(reserve);
-        std::uint64_t mib = 0;
-        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), mib);
-        constexpr std::size_t MiB = 1024 * 1024;
-        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !mib ||
-            mib > std::numeric_limits<std::size_t>::max() / MiB)
-            throw std::invalid_argument("NINFER_TEST_DESKTOP_RESERVE_MIB requires positive MiB");
-        options.desktop_reserve_bytes = static_cast<std::size_t>(mib) * MiB;
-    }
     ninfer::test::qwen3_5::set_context_capacity(options, batch + 2);
     ninfer::Engine engine(options);
     if (engine.description().kv_cache != storage)
@@ -2328,7 +2339,7 @@ int exercise_attention_integration(const char* artifact) {
     return 0;
 }
 
-int main() {
+int main() try {
     const char* artifact = std::getenv("NINFER_TEST_ARTIFACT");
     if (!artifact || !*artifact) {
         std::cout << "skip: NINFER_TEST_ARTIFACT is not set\n";
@@ -2395,4 +2406,7 @@ int main() {
     }
     if (result == 0) { std::cout << "ok\n"; }
     return result;
+} catch (const std::exception& error) {
+    std::cerr << "prefix integration failed: " << error.what() << '\n';
+    return 1;
 }

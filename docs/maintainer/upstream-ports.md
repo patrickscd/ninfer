@@ -1,6 +1,6 @@
 # Upstream ports
 
-Updated: November 5, 2026.
+Updated: November 6, 2026.
 
 This is the living record of how this workstation fork ([igorls/ninfer](https://github.com/igorls/ninfer))
 tracks [Neroued/ninfer](https://github.com/Neroued/ninfer): the reviewed upstream point, the fork
@@ -19,6 +19,47 @@ do not advance the merge-base without reviewing the incoming work. Native Window
 both Blackwell targets, resident execution and the fork's product contracts govern
 those decisions. A source merge, hardware qualification and release acceptance are
 separate states.
+
+### Native Windows RTX 5090 follow-up (November 6)
+
+The [published issue report and public evidence bundle](https://github.com/igorls/ninfer/issues/37#issuecomment-6696092561)
+record the results below and the exact local source patches.
+
+Issue #37 now selects `99d7f90f` (reviewed upstream `a754fcf3`) against baseline
+`2b62e8e5`; comparison uses the published `1a5edb31` public-Engine harness.
+The native Windows/MSVC 19.50/CUDA 13.3 build needs local direct-template launcher
+fixes. Its prefix fixture also needs Windows guards for ELF-only event-query
+injection, a diagnostic for setup exceptions, and consistent explicit desktop-reserve
+application. The split-projection fixture is migrated to the documented KV-first MTP
+segmentation, retaining its FP64 oracle and checking rejection of the retired order.
+The report initially qualified these follow-ups as working-source patches. They
+are included in this change; committed-source reruns are tracked in issue #37.
+Neither source publication nor that initial run accepts the untouched SHA or a
+`workstation` merge.
+
+All 35 selected CTests pass after the affected split-fixture rerun; the initial
+20/21 numerical result and its retired-layout failure remain recorded. Dense native
+MTP, FP8 attention B2/B4, terminal publication, and ordinary/MTP eager/graph
+CLI/server behavior pass. Supervisor health, telemetry, exact HTML bytes and script
+syntax pass; browser interaction is not qualified. One injected terminal-failure
+subcase is explicitly skipped on Windows because it requires ELF interposition.
+Flash real-model cases remain blocked by Host RAM and were not executed.
+
+The 24-process matrix validates 360 measured requests and exact IDs in all 180 paired
+measured rows. Three ordinary wave medians regress 0.336–0.778%; five improve,
+with a worst adverse pair of 1.008%. Phase-rate losses remain. Nine C4/MTP short-prompt
+paired rows change their proposal counts; three C1/MTP cold-prime pairs change the
+ninth ID. A separate eager/graph probe shows candidate MTP agrees with ordinary
+on that input while baseline MTP selects the other near-tied contender. The observed
+ranking is documented; the first changed arithmetic operation is not isolated.
+Whole-process CPU, constructor, Host working-set/commit and owned Device costs rise.
+
+The [full device/route-specific report](../performance.md#native-windows-rtx-5090-dense-follow-up-2026-11-06)
+retains every matrix row, paired range, changed counter/prime, repaired failure,
+resource measurement and remaining gap. Driver 621.14 and the observed 510 W timing
+limit differ from October, and the harness changed: October timings are not a
+comparison baseline. Final committed-source qualification and explicit maintainer
+acceptance of remaining differences/costs are still required; the merge gate stays open.
 
 ### Active release integration after the config qualification snapshot
 

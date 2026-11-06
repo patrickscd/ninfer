@@ -298,6 +298,12 @@ integration tests serially. `NINFER_PREFIX_REAL_SCENARIO` selects a focused pref
 `vision`, `late-instructions` or `concurrent`; the default is `all`. These integration checks
 use behavior and state accounting rather than another numerical path's generated tokens as a golden.
 
+`NINFER_TEST_DESKTOP_RESERVE_MIB` sets an explicit positive MiB reserve for every prefix
+scenario; unset retains the Engine's normal 8 GiB reserve. On a shared 32 GB desktop,
+`2048` can permit the fitting dense fixture while leaving desktop headroom. Record the
+selected value with the result. Windows terminal-publication checks report the injected
+CUDA event-query instance-failure subcase as skipped because it requires ELF interposition.
+
 The `attention` scenario checks the selected KV type, chunked prefill, concurrent Graph decode
 across a resource tier, prefix continuation, and workspace bounds:
 

@@ -144,6 +144,10 @@ ctest --test-dir build-win -C Release
 - Expert-cache and PLE CUDA error injection require ELF symbol interposition and run on Linux.
   Windows retains their ordinary storage, upload, lifetime and recovery cases; the expert-cache
   executable explicitly reports that its injected CUDA-failure cases are skipped.
+- The prefix fixture's terminal-publication scenario also requires ELF interposition for its
+  injected `cudaEventQuery` instance failure. Windows reports that subcase as skipped while
+  retaining normal completion, cancellation and queue/native-error checks. The attention
+  scenario does not use the injection.
 - CPU benchmark accounting uses `GetProcessTimes` on Windows and process CPU accounting on Linux.
   Loading reports use peak working set on Windows and peak RSS on Linux, both in KiB; compare
   memory measurements within the same operating system.

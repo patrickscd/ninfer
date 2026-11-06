@@ -1632,3 +1632,160 @@ behavior were not measured.
 
 All three items were accepted for this merge with these findings on record. That covers
 the source integration only; it is not release acceptance or RTX 5090 qualification.
+
+## Native Windows RTX 5090 dense follow-up (2026-11-06)
+
+[Published issue report and public evidence bundle](https://github.com/igorls/ninfer/issues/37#issuecomment-6696092561).
+
+**Selected native Windows/dense checks pass after local portability and fixture repairs. Full issue #37 acceptance remains BLOCKED / pending maintainer disposition.** The measurements below tested `99d7f90f` plus the local changes below before their commit, not the untouched SHA. The fixes and documentation are included in this change; committed-source reruns are tracked in the linked issue. No merge, installation of a product release, or deployment is claimed. The October 30 results remain historical; neither their timings nor the older candidate qualify this source.
+
+### Source, platform and method
+
+- Candidate base `99d7f90f31d686108b171854f6d583506d10f3ba`, reviewed upstream second parent `a754fcf3bf524494aa927c2f54e0cbfb58f569ab`; baseline `2b62e8e5e558ac1572c35f64269e1db30b85ef9d`.
+- Unmodified published comparison harness from `1a5edb312d33cc19aecbc2cffa818690de89f4b7`, including its build registration in both checkouts. Its three source/document blobs match the published revision. Baseline also has the applicable direct-template MSVC launcher fixes; its old local benchmark-reserve plumbing was removed.
+- Physical RTX 5090, 32,607 MiB, WDDM; Windows 11 Home build 26300; i9-14900KS, 24 cores/32 logical processors; 64 GB RAM, 63.75 GiB usable. Driver **621.14**; MSVC **19.50.35503**, CUDA **13.3.33**, CMake 4.3.4, Ninja 1.13.2 and Python 3.11.15. Native Release `sm_120a`, distributed execution disabled. Products, benchmark, comparison harness and selected test targets build. Builds and test/benchmark children run below normal priority; existing apps/services remain running.
+- Dependencies: hwloc 2.12.2, LGPL FFmpeg 8.1.2, libcurl 8.22.0; task-local libjpeg-turbo 3.2.1 built from the verified official source with SIMD/TurboJPEG off. Text qualification does not qualify JPEG/media performance. The independent schema oracles use jsonschema 4.26.0 in the selected Python 3.11 environment.
+- Exact dense artifact `neroued/Qwen3.8-27B-nvfp4-NInfer@a107ba1b5b0609d9ca90d5ed61439f5f5cc7d64d`, `qwen3_8_27b_nvfp4.ninfer`, 23,719,715,844 bytes; SHA-256 reverified as `74d2c57145e6ff11d1d2faa79594477f9bc903a611af1fb20218189fbbb77d82`. Both arms use that file directly, without conversion/reframe.
+- Published harness/public Engine route, committed 65,536-ID corpus; P512/P2048 × C1/C4 × K0/K3, optimized dense proposal head, BF16 KV, context 4096, chunk 1024, graphs, stop tokens disabled, 65 outputs/64 timed decode tokens, no prefix reuse, Host context backing disabled; one short prime, one warmup and three measured waves per P. Three fresh process pairs per profile, AB/BA/AB.
+- Both arms set `NINFER_COMPARE_DESKTOP_RESERVE_MIB=2048`. Candidate also has `NINFER_VRAM_BUDGET_MIB=28672`; baseline does not implement that cap. Candidate Context bytes come from its published capacity query, while baseline uses explicit KV 4096 × C. This representation difference is part of the agreed harness method and its resource cost is reported below.
+- Phase rates and wave seconds are means of process means; changes are medians of three paired percentages, with full ranges. Concurrent request rows are correlated. Wave is submit-to-completion wall time; per-request phase rates are distinct metrics. Predeclared investigation flags remain >2% median wave slowdown or >5% any paired slowdown. Smaller adverse results remain visible and these flags do not grant acceptance.
+- Clocks, affinity and power limits were not locked. Initial preflight reported 462 W; the limit was **510 W immediately before timing and at later/end observations**. This task changed no power setting. Actual power/clocks/thermals are recorded below. Driver/power/method changes preclude comparison with October throughput.
+
+### Repairs and correctness evidence
+
+Local changes name the same CUDA kernel templates directly at launch (five launcher files), retaining the selected templates, arguments, schedules and arithmetic. MSVC initially failed with C2326. The prefix fixture also initially failed compilation/link setup because its new fault hook assumed ELF interposition. Windows now retains normal behavior tests and explicitly skips only the injected event-query instance-failure subcase; Linux's hook remains. A top-level exception diagnostic replaces an unhandled termination when fixture setup fails. The existing strict positive `NINFER_TEST_DESKTOP_RESERVE_MIB` setting now applies to all prefix option builders; absent the variable, defaults are retained.
+
+The initial numerical run was **20 PASS / 1 FAIL / 0 SKIP in 851.55 s**. `ninfer_linear_split_test` requested the retired Qwen4 MTP segmentation. The candidate's model contract, parameter binding and kernel all use KV-first `[512,512,128,6144,6144,512]`, while the fixture still requested the old order. The fixture now exercises the documented order with its existing independent FP64 dot oracle, guards, all token boundaries and Graph replay, and checks that the retired order is rejected. The complete affected suite then passes in **7.00 s**. The original failure is retained; no kernel arithmetic or tolerance was changed to resolve it.
+
+**Final selected numerical/benchmark set: 21 PASS / 0 FAIL / 0 SKIP**, combining the unaffected passing cases and the focused rerun. It includes RMSNorm, gated RMSNorm/SiLU D128, MoE, block-scaled MoE, sparse GQA/all five KV formats and relevant query boundaries, legacy HC, five HC suites, nine Linear/fused/split suites and benchmark support. Existing independent FP32/FP64/exact oracles, independent packed-input scale decoding, semantic cast boundaries and numerical limits were used; there was no local relaxation. No nonfinite output was reported. Largest fraction of an active bound is 0.986197, not an accuracy-improvement claim.
+
+**Additional support set: 14 PASS / 0 FAIL / 0 SKIP in 12.16 s**: context pool/capacity/store, grammar, regex plus Python oracle, JSON Schema plus Python oracle, Qwen tool constraints plus schema oracle, tool parser, CPU MoE groupwise/NVFP4 and the shipped dashboard's JavaScript syntax.
+
+| Numerical suite | Largest active-bound fraction |
+|---|---:|
+| `ninfer_moe_test` | 0.586480 |
+| `ninfer_moe_block_scaled_test` | 0.667203 |
+| `ninfer_linear_nvfp4_a16_test` | 0.544712 |
+| `ninfer_linear_nvfp4_a4_test` | 0.912617 |
+| `ninfer_linear_fp8_a16_test` | 0.517306 |
+| `ninfer_linear_bf16_a16_test` | 0.644255 |
+| `ninfer_linear_split_multi_output_test` | 0.934617 |
+| `ninfer_linear_split_two_output_test` | 0.939546 |
+| `ninfer_qsa_sparse_gqa_test` | 0.969050 |
+| `ninfer_linear_add_nvfp4_test` | 0.833606 |
+| `ninfer_linear_swiglu_nvfp4_test` | 0.609573 |
+| `ninfer_hyper_connection_test` | 0.986197 |
+| `ninfer_rmsnorm_test` | 0.924813 |
+| `ninfer_gated_rmsnorm_test` | 0.984945 |
+| `ninfer_hc_expand_norm_test` | 0.972638 |
+| `ninfer_hc_grouped_rmsnorm_test` | 0.972638 |
+| `ninfer_hc_combine_test` | 0.972757 |
+| `ninfer_hc_combine_norm_test` | 0.972757 |
+| `ninfer_hc_mix_test` | 0.242755 |
+| `ninfer_linear_split_test` | 0.645811 |
+
+Dense native MTP transaction cancellation, paused ownership, restoration, replay recovery and target-column readouts pass. FP8/MTP attention passes B2 and B4 on the final fixture, retaining 64K context, configured Graph decode and batch/prefix/output-count/workspace assertions, explicit 2 GiB reserve and appended count 34. Workspace peak is 255,131,648 bytes in both. Terminal publication passes normal completion, cancellation and queue/native errors with the same reserve; **one ELF-only fault-injection subcase is explicitly SKIPPED on Windows**. Its first run, before consistent reserve application, aborted at startup; the added diagnostic established `Device budget cannot hold model weights and required execution resources` under the default 8 GiB floor. The failure and corrected rerun are retained.
+
+Four final CLI/server modes pass: ordinary/MTP × eager/graph, four-client generation, streaming, forced strict tool calls and streamed arguments, token logprobs, closed-set `/v1/score`, and admin telemetry. All 54 captured HTTP exchanges return 200. Supervisor health is 200 and GPU telemetry is available. HTTP returns exactly the current 381,482 dashboard bytes and its two scripts parse; browser interactions are not qualified. A short greeting probe has the same two greedy IDs across the four modes, maximum raw-logprob difference 0.00000190735 nat. This is a short-probe result, not general arbitrary-prompt equivalence.
+
+### Full paired timing matrix
+
+All 24 measured processes exit zero; all 360 measured requests validate configuration and 65 outputs each. All **180 paired measured rows** have identical generated IDs. Every original point is retained.
+
+| C | K | P | Prefill tok/s A → B | Decode tok/s A → B | Wave s A → B | Paired wave change %, median (range) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 0 | 512 | 12482.6 → 12497.8 | 74.94 → 74.28 | 0.9031 → 0.9061 | +0.512 (-0.190 to +0.648) |
+| 1 | 0 | 2048 | 14595.1 → 14530.7 | 74.70 → 73.68 | 1.0089 → 1.0139 | +0.336 (+0.163 to +1.008) |
+| 1 | 3 | 512 | 11414.4 → 11844.2 | 135.45 → 135.62 | 0.5223 → 0.5172 | -1.018 (-2.242 to +0.362) |
+| 1 | 3 | 2048 | 13631.4 → 13759.3 | 224.54 → 223.20 | 0.4379 → 0.4374 | -0.090 (-0.307 to +0.031) |
+| 4 | 0 | 512 | 11999.6 → 11869.3 | 68.80 → 68.02 | 1.1519 → 1.1613 | +0.778 (+0.700 to +0.969) |
+| 4 | 0 | 2048 | 13770.6 → 13773.4 | 67.21 → 66.87 | 1.6270 → 1.6010 | -1.626 (-2.026 to -1.147) |
+| 4 | 3 | 512 | 11375.8 → 11808.7 | 122.29 → 123.11 | 0.7962 → 0.7838 | -1.599 (-1.998 to -1.088) |
+| 4 | 3 | 2048 | 13480.0 → 13681.0 | 199.63 → 199.24 | 1.0065 → 0.9735 | -3.482 (-4.238 to -2.086) |
+
+Five of eight wave medians improve; three ordinary rows slow by 0.336–0.778%. Worst adverse pair is +1.008% at C1/K0/P2048. No row crosses the investigation flags. This does not establish equivalence, erase phase-rate losses or accept the startup/memory costs.
+
+| C | K | P | Prefill paired change %, median (range) | Decode paired change %, median (range) |
+|---:|---:|---:|---:|---:|
+| 1 | 0 | 512 | +0.541 (-1.630 to +1.473) | -0.797 (-1.196 to -0.625) |
+| 1 | 0 | 2048 | -0.095 (-1.683 to +0.473) | -1.360 (-1.702 to -1.046) |
+| 1 | 3 | 512 | +4.250 (+2.251 to +4.808) | +0.518 (-0.992 to +0.857) |
+| 1 | 3 | 2048 | +1.073 (+0.619 to +1.126) | -0.608 (-0.732 to -0.443) |
+| 4 | 0 | 512 | -0.633 (-2.148 to -0.462) | -1.117 (-1.177 to -1.087) |
+| 4 | 0 | 2048 | -0.205 (-0.348 to +0.617) | -1.274 (-1.623 to +1.451) |
+| 4 | 3 | 512 | +3.530 (+3.507 to +4.384) | +0.748 (+0.336 to +0.947) |
+| 4 | 3 | 2048 | +1.411 (+1.343 to +1.718) | -0.465 (-0.676 to +0.556) |
+
+Adverse decode medians remain in all ordinary rows and MTP/P2048: up to −1.360%, worst pair −1.702%. Worst prefill pair is −2.148% (C4/K0/P512). Favorable wave means/medians do not replace these findings.
+
+### Counter differences and the cold-prime token difference
+
+The fourth row (zero-based row 3) of C4/K3/P512 differs in **all nine measured paired rows** and all three corresponding warmup paired rows:
+
+| Field | Baseline | Candidate |
+|---|---:|---:|
+| rounds | 29 | 28 |
+| drafted tokens | 86 | 83 |
+| accepted tokens | 35 | 36 |
+| accepted per position | [21,11,3] | [20,12,4] |
+
+Fallback steps and generated IDs match there. All other measured counter comparisons match. The full per-pair/repetition/row difference ledger is retained. This repeats the recorded Server Edition counter pattern, but its first differing drafter operation was not independently isolated on this device; the other device's attribution is not assumed as new proof.
+
+Outside the P512/P2048 measured rows, the C1/K3 **one-token-prompt prime** changes its ninth generated ID in each of three pairs: baseline 103768 → candidate 97275, with the preceding eight IDs equal. Exact A/B prime-ID parity therefore does **not** hold; those points are not omitted.
+
+A separate public-Engine diagnostic uses the same first corpus token and nine outputs, ordinary/MTP, eager/graph, both arms: eight processes / sixteen requests. Ordinary decoding in both arms chooses 97275. Candidate MTP also chooses 97275; baseline MTP chooses 103768. Eager/graph agree, and enabling the repeated request's top-five/candidate readouts leaves IDs unchanged in every probe. At the ninth position, ordinary and candidate MTP tie the two contenders; baseline MTP gives 103768 a 0.0625-nat advantage. This establishes the observed ranking mechanism, not the first arithmetic operation responsible. Candidate ordinary/MTP common-top-five raw-logprob differences reach 0.051348 nat (baseline 0.064550 nat); equal IDs do not imply equal distributions. No new tolerance was invented or transferred from the Flash suite. Maintainer disposition is still required for the changed prime/counters.
+
+### Process resources and constructor cost
+
+Means with complete three-process ranges. CPU includes startup, prime, warmup and measured work. Peak working set is not steady-state RAM; private commit is a separate Windows accounting quantity, not resident Host RAM. I/O/cache state was not controlled, so constructor time does not isolate a loader cause.
+
+| C | K | CPU seconds A → B | Peak working set MiB A → B | Peak private commit MiB A → B | Constructor seconds A → B |
+|---:|---:|---|---|---|---|
+| 1 | 0 | 2.443 (2.312–2.562) → 2.651 (2.625–2.703) | 1876.5 (1876.2–1876.8) → 2252.1 (2251.6–2252.9) | 22250.9 (22250.7–22251.0) → 22764.7 (22763.9–22765.6) | 5.270 (5.236–5.322) → 5.757 (5.731–5.770) |
+| 1 | 3 | 2.417 (2.375–2.469) → 2.630 (2.438–2.734) | 1881.1 (1880.9–1881.3) → 2262.7 (2262.7–2262.9) | 23055.8 (23055.6–23056.2) → 23868.1 (23868.0–23868.1) | 5.447 (5.438–5.461) → 6.070 (6.051–6.088) |
+| 4 | 0 | 2.818 (2.641–3.016) → 3.078 (3.016–3.172) | 1908.2 (1908.1–1908.4) → 2279.4 (2278.9–2280.1) | 23513.4 (23512.9–23514.0) → 24135.6 (24135.5–24135.8) | 5.387 (5.372–5.401) → 6.056 (6.046–6.066) |
+| 4 | 3 | 2.854 (2.828–2.891) → 3.286 (3.219–3.359) | 1926.9 (1926.7–1927.0) → 2321.2 (2320.4–2321.6) | 24408.3 (24408.1–24408.5) → 25679.3 (25635.5–25702.1) | 5.579 (5.564–5.605) → 6.818 (6.797–6.832) |
+
+Candidate mean whole-process CPU rises in all four profiles (8.5–15.1%); inference-only CPU change was not isolated. Mean peak working set rises 371–394 MiB, peak private commit 514–1,271 MiB, and constructor time 0.487–1.238 s. These costs remain adverse findings.
+
+Eight separate resource-only executions repeat the same full harness workload with a final public memory snapshot. They do not replace or enter the timing matrix. The baseline's sequence arena and the candidate's Context plus persistent arenas have different ownership definitions, so the components are shown separately. Owned sums exclude unreported driver/Graph overhead; campaign NVML observations are separate.
+
+| C | K | Weights MiB, both | Baseline sequence MiB | Candidate Context + persistent MiB | Workspace capacity MiB A → B | Workspace peak MiB A → B | Owned Device sum MiB A → B |
+|---:|---:|---:|---:|---|---:|---:|---:|
+| 1 | 0 | 19431.71 | 416.92 | 440.47 + 11.52 | 125.89 → 125.89 | 125.887 → 125.879 | 19974.52 → 20009.58 |
+| 1 | 3 | 20202.57 | 442.09 | 734.11 + 30.40 | 125.89 → 125.89 | 125.887 → 125.879 | 20770.54 → 21092.96 |
+| 4 | 0 | 19431.71 | 1636.27 | 1761.87 + 15.99 | 125.89 → 125.89 | 125.887 → 125.879 | 21193.86 → 21335.45 |
+| 4 | 3 | 20202.57 | 1736.88 | 2495.98 + 61.44 | 125.89 → 125.89 | 125.887 → 125.879 | 22065.34 → 22885.88 |
+
+Host Context backing is zero in both benchmark arms. This is different from the product smoke's default serving cache: one C4/K3/FP8 admin snapshot reports 2 GiB Device Context, 9,821,569,024 bytes Host Context and 255,139,840 bytes workspace capacity (36,544,512 bytes observed workspace peak). Those are reported allocations/capacities, not a steady-RSS claim. It reports 8,164,876,288 bytes free GPU memory with the 2 GiB floor holding and 31,550,750,720 bytes available system memory. The benchmark's RSS must not stand in for this serving configuration.
+
+Whole-matrix complete 1-second GPU observations include startup, warmup and background desktop work:
+
+| Metric | Observed range |
+|---|---:|
+| GPU used MiB | 1384.00–24731.00 |
+| GPU free MiB | 7457.00–30804.00 |
+| Power W | 85.62–521.53 |
+| SM MHz | 2437.00–3045.00 |
+| Memory MHz | 14001.00–14001.00 |
+| Temperature C | 35.93–61.13 |
+| GPU utilization % | 1.00–99.00 |
+
+There are 296 complete samples. Stopping the continuous sampler can lose its final buffered tail; complete per-process boundary samples are also retained. Actual draw can momentarily exceed the observed limit. No valid run reports a CUDA error/device reset, unexpected OOM or failed allocation; the default-reserve startup refusal is separately retained above. Existing services remain running after owned test processes exit. Interactive frame latency, broad fault/OOM injection, and unexercised resource boundaries remain unqualified.
+
+### Reproduction, evidence and disposition
+
+Use native Release `sm_120a`, the toolchain/artifact pins above, hwloc/JPEG runtime DLL paths for direct launches and Python 3.11. The task-local JPEG install uses the Unix-style share/doc layout, requiring explicit `JPEG_LICENSE_FILE` and `JPEG_IJG_NOTICE_FILE` CMake paths. Windows launcher and fixture patches are prerequisites; the untouched SHA failed the selected native build. Warnings C4018/C4244/C4267/C4834 and nvcc 177-D/186-D/20012-D remain. LIBCMT/LNK4098 did not recur in the selected targets; other targets/compiler versions are not covered.
+
+Run the selected named CTests with `NINFER_OP_REPORT_STATS=1`, serially, retaining both initial and affected-rerun logs. Native real check: `NINFER_TEST_ARTIFACT=<dense pin> ninfer_qwen3_5_native_transactions_test mtp`. Prefix checks: set `NINFER_PREFIX_REAL_SCENARIO=attention`, `NINFER_TEST_SPECULATIVE=mtp`, `NINFER_TEST_KV_DTYPE=fp8`, `NINFER_TEST_BATCH=2` (then 4), and `NINFER_TEST_DESKTOP_RESERVE_MIB=2048`; terminal publication uses the same reserve and scenario `terminal-publication`.
+
+Follow [the published comparison build/run instructions](https://github.com/igorls/ninfer/blob/1a5edb312d33cc19aecbc2cffa818690de89f4b7/bench/compare/README.md). The candidate capacity query is outside measured processes. Per profile:
+
+```text
+ninfer_release_compare dense <dense-pin.ninfer> bench/fixtures/bench_corpus.ids C K 0 capacity capacity.json
+ninfer_release_compare dense <dense-pin.ninfer> bench/fixtures/bench_corpus.ids C K <device_bytes> measure unique.json
+```
+
+Only the candidate runs `capacity`; both arms run `measure` with that argument. Retain C1/C4 × K0/K3 and AB/BA/AB; do not substitute the changed `ninfer_bench` interface or compare new wave seconds against October values. Exact commands, 24 process reports, all differences, eight cold-prime probes, eight resource snapshots, requests/responses, numerical records, setup/build failures and source patches are retained in the ignored `profiles/bench/issue-37-5090-20261106/` evidence. The public results bundle contains complete comparison/probe outputs, JUnit/verdict logs and worst oracle records; the repetitive full numerical error stream and machine-local smoke configuration remain in the private local archive.
+
+**Flash real-model cases, including the 26-case Engine suite, remain BLOCKED (host RAM), not PASS or an unreported skip.** No Flash artifact was downloaded/materialized; its backing requirement was not re-measured for this candidate. Linux follow-up, media/browser interaction, full-repository CTest/converter coverage and deployment are not claimed. Affected final-SHA qualification is recorded separately in the linked issue. Changed primer/counters, phase-rate regressions and process/Device resource costs require explicit maintainer acceptance. The issue and merge gate remain open.

@@ -240,6 +240,16 @@ int validation(DeviceContext& device, const Profile& profile, const Weight& weig
     auto empty  = x;
     empty.ne[1] = 0;
     failures += rejects("zero M", [&] { launch(empty, weight, out, device.execution_view()); });
+    if (profile.segments.size() == 6) {
+        auto retired = profile;
+        retired.segments = {{"query", 6144, 256}, {"key", 512, 256}, {"gate", 6144, 256},
+                            {"value", 512, 256}, {"index_query", 512, 128},
+                            {"index_key", 128, 128}};
+        Outputs legacy(retired, 2, false);
+        failures += rejects("retired MTP QSA output order", [&] {
+            launch(x, weight, legacy.views, device.execution_view());
+        });
+    }
     return failures;
 }
 
@@ -264,14 +274,14 @@ int main() {
               {"index_key", 128, 128}},
              {1,  2,  4,  8,   15,  16,  17,  47,  48,  49,   63,   64,   65,
               95, 96, 97, 127, 128, 129, 511, 512, 513, 1024, 2048, 4096, 4097}},
-            {"qkgv-index",
+            {"mtp-kv-prefix",
              false,
-             {{"query", 6144, 256},
-              {"key", 512, 256},
-              {"gate", 6144, 256},
+             {{"key", 512, 256},
               {"value", 512, 256},
-              {"index_query", 512, 128},
-              {"index_key", 128, 128}},
+              {"index_key", 128, 128},
+              {"query", 6144, 256},
+              {"gate", 6144, 256},
+              {"index_query", 512, 128}},
              {1,  2,  4,  7,  8,  9,   15,  16,  17,  31,  32,  33,   47,   48,   49,  63,
               64, 65, 95, 96, 97, 127, 128, 129, 511, 512, 513, 1024, 2048, 4096, 4097}}};
         int failures = 0;
